@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9165626079705909"
+     crossorigin="anonymous"></script>
+
+  <base href="/">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Gestion Budget Pro - Gérez vos finances en toute simplicité">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Gestion Budget Pro">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <!-- If deploying custom logo as favicon, replace favicon.png with assets/logo/23651dbedf79451292da2a1b4e3e2704-free.png and copy it to web/ -->
+
+  <title>Gestion Budget Pro</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    
+    .loading-container {
+      text-align: center;
+      color: white;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 2rem;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    
+    .logo {
+      width: 100px;
+      height: 100px;
+      margin: 0 auto 1rem;
+      background: white;
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+      padding: 12px;
+    }
+    .logo img { width: 100%; height: 100%; object-fit: contain; }
+    
+    .spinner {
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top: 3px solid white;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 1rem auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="loading-container">
+  <div class="logo"><img src="favicon.png" alt="Logo" /></div>
+    <h2 style="margin: 0; font-weight: 300;">Gestion Budget Pro</h2>
+    <div class="spinner"></div>
+    <div>Chargement de l'application...</div>
+  </div>
+
+  <script>
+    window.addEventListener('load', function(ev) {
+      // Utiliser la nouvelle API Flutter
+      _flutter.loader.load({
+        serviceWorkerSettings: {
+          serviceWorkerVersion: null,
+        },
+        onEntrypointLoaded: function(engineInitializer) {
+          engineInitializer.initializeEngine().then(function(appRunner) {
+            // Cacher le loading screen
+            document.querySelector('.loading-container').style.display = 'none';
+            // Lancer l'app Flutter
+            appRunner.runApp();
+          });
+        }
+      });
+    });
+  </script>
+  
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
