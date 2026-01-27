@@ -475,24 +475,24 @@ class _PlaisirsTabState extends State<PlaisirsTab> {
                       Icon(
                         Icons.shopping_cart,
                         size: 100,
-                        color: Colors.grey.shade400,
+                        color: Theme.of(context).colorScheme.outline,
                       ),
                       const SizedBox(height: 20),
                       Text(
                         _currentFilter == 'Tous' 
                             ? 'Aucune dépense enregistrée'
                             : 'Aucune dépense pour cette période',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         'Ajoutez vos dépenses quotidiennes',
-                        style: TextStyle(color: Colors.grey),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 30),
@@ -500,10 +500,6 @@ class _PlaisirsTabState extends State<PlaisirsTab> {
                         onPressed: _addPlaisir,
                         icon: const Icon(Icons.add),
                         label: const Text('Ajouter une dépense'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.purple,
-                          foregroundColor: Colors.white,
-                        ),
                       ),
                     ],
                   ),
@@ -543,7 +539,9 @@ class _PlaisirsTabState extends State<PlaisirsTab> {
                           return Card(
                             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                             elevation: isSelected ? 4 : 1,
-                            color: isSelected ? Colors.blue.shade50 : null,
+                            color: isSelected 
+                                ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
+                                : null,
                             child: ListTile(
                               // Case à cocher en mode sélection ou indicateur de pointage
                               leading: _isSelectionMode

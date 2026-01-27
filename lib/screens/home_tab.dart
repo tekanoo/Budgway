@@ -293,7 +293,7 @@ class _HomeTabState extends State<HomeTab> {
                             child: Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
+                                border: Border.all(color: Theme.of(context).colorScheme.outline),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Row(
@@ -426,18 +426,18 @@ class _HomeTabState extends State<HomeTab> {
         
         // SECTION DÉTAILS : Revenus, Charges, Dépenses (en plus petit)
         Card(
-          color: Colors.grey.shade50,
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Détails',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -465,10 +465,10 @@ class _HomeTabState extends State<HomeTab> {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w500,
-            color: Colors.grey,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
         Text(

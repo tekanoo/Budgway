@@ -1448,24 +1448,24 @@ class _EntreesTabState extends State<EntreesTab> {
                       Icon(
                         Icons.trending_up,
                         size: 100,
-                        color: Colors.grey.shade300,
+                        color: Theme.of(context).colorScheme.outline,
                       ),
                       const SizedBox(height: 20),
                       Text(
                         _currentFilter == 'Tous' 
                             ? 'Aucun revenu enregistré'
                             : 'Aucun revenu pour cette période',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         'Ajoutez vos revenus (salaire, primes...)',
-                        style: TextStyle(color: Colors.grey),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 30),
@@ -1473,10 +1473,6 @@ class _EntreesTabState extends State<EntreesTab> {
                         onPressed: _addEntree,
                         icon: const Icon(Icons.add),
                         label: const Text('Ajouter un revenu'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                        ),
                       ),
                     ],
                   ),
@@ -1513,7 +1509,9 @@ class _EntreesTabState extends State<EntreesTab> {
                           return Card(
                             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                             elevation: isSelected ? 4 : 1,
-                            color: isSelected ? Colors.blue.shade50 : null,
+                            color: isSelected 
+                                ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
+                                : null,
                             child: ListTile(
                               // Case à cocher en mode sélection ou indicateur de pointage
                               leading: _isSelectionMode
@@ -1547,7 +1545,9 @@ class _EntreesTabState extends State<EntreesTab> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   decoration: isPointed ? TextDecoration.lineThrough : null,
-                                  color: isPointed ? Colors.grey : null,
+                                  color: isPointed 
+                                      ? Theme.of(context).colorScheme.onSurfaceVariant
+                                      : null,
                                 ),
                               ),
                               subtitle: Column(

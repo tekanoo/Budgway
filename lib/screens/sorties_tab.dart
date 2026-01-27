@@ -233,8 +233,6 @@ class _SortiesTabState extends State<SortiesTab> {
       // Recharger les dépenses avec le même filtre que les charges
       _loadDepensesByFilter();
     }
-    
-    setState(() {});
   }
 
   // Nouvelle méthode pour recalculer les dépenses selon le filtre
@@ -278,7 +276,7 @@ class _SortiesTabState extends State<SortiesTab> {
             }
           });
       
-      setState(() {});
+      // Ne pas appeler setState ici pour éviter le reset du scroll
     } catch (e) {
       // Logs supprimés
     }
@@ -1241,24 +1239,24 @@ class _SortiesTabState extends State<SortiesTab> {
                       Icon(
                         Icons.receipt_long,
                         size: 100,
-                        color: Colors.grey.shade400,
+                        color: Theme.of(context).colorScheme.outline,
                       ),
                       const SizedBox(height: 20),
                       Text(
                         _currentFilter == 'Tous' 
                             ? 'Aucune charge enregistrée'
                             : 'Aucune charge pour cette période',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.grey,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         'Ajoutez vos charges fixes et variables',
-                        style: TextStyle(color: Colors.grey),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1300,18 +1298,22 @@ class _SortiesTabState extends State<SortiesTab> {
                             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                             decoration: BoxDecoration(
                               color: isSelected 
-                                  ? Colors.blue.shade50 
-                                  : (isPointed ? Colors.green.shade50 : Colors.white),
+                                  ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
+                                  : (isPointed 
+                                      ? Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.3)
+                                      : Theme.of(context).colorScheme.surface),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isSelected 
-                                    ? Colors.blue.shade300
-                                    : (isPointed ? Colors.green.shade300 : Colors.grey.shade200),
+                                    ? Theme.of(context).colorScheme.primary
+                                    : (isPointed 
+                                        ? Theme.of(context).colorScheme.secondary
+                                        : Theme.of(context).colorScheme.outlineVariant),
                                 width: isSelected ? 2 : 1,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.grey.withValues(alpha: 0.1),
+                                  color: Theme.of(context).shadowColor.withValues(alpha: 0.1),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 ),
