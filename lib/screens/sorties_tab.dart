@@ -1262,27 +1262,27 @@ class _SortiesTabState extends State<SortiesTab> {
                     ],
                   ),
                 )
-              : Column(
-                  children: [
+              : CustomScrollView(
+                  controller: _scrollController,
+                  slivers: [
                     // Espace pour l'AppBar
-                    SizedBox(height: MediaQuery.of(context).padding.top + 70),
+                    SliverToBoxAdapter(
+                      child: SizedBox(height: MediaQuery.of(context).padding.top + 70),
+                    ),
                     
                     // En-tête financier avec effet de disparition au scroll
-                    AnimatedOpacity(
-                      opacity: _headerOpacity,
-                      duration: const Duration(milliseconds: 100),
-                      child: SizedBox(
-                        height: _headerOpacity > 0.1 ? null : 0,
-                        child: _headerOpacity > 0.1 ? _buildFinancialHeader() : null,
+                    SliverToBoxAdapter(
+                      child: AnimatedOpacity(
+                        opacity: _headerOpacity,
+                        duration: const Duration(milliseconds: 100),
+                        child: _buildFinancialHeader(),
                       ),
                     ),
 
                     // Liste des charges
-                    Expanded(
-                      child: ListView.builder(
-                        controller: _scrollController,
-                        itemCount: filteredSorties.length,
-                        itemBuilder: (context, index) {
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
                           final sortie = filteredSorties[index];
                           final amount = (sortie['amount'] as num?)?.toDouble() ?? 0;
                           final description = sortie['description'] as String? ?? '';
@@ -1483,7 +1483,13 @@ class _SortiesTabState extends State<SortiesTab> {
                             ),
                           );
                         },
+                        childCount: filteredSorties.length,
                       ),
+                    ),
+                    
+                    // Padding en bas pour éviter que le dernier élément soit caché par le FAB
+                    SliverToBoxAdapter(
+                      child: SizedBox(height: 80),
                     ),
                   ],
                 ),
