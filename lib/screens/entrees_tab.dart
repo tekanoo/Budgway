@@ -42,12 +42,36 @@ class _EntreesTabState extends State<EntreesTab> {
   // AJOUTER ces variables manquantes pour les revenus
   double totalRevenus = 0.0;
   double totalRevenuPointe = 0.0;
+  
+  // Scroll controller pour l'effet de disparition du header
+  final ScrollController _scrollController = ScrollController();
+  double _headerOpacity = 1.0;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadEntrees();
     _loadFinancialData(); // Nouvelle méthode pour charger les données financières
+  }
+  
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+  
+  void _onScroll() {
+    // Calculer l'opacité basée sur le scroll (disparition sur 150px)
+    final offset = _scrollController.offset;
+    final newOpacity = (1.0 - (offset / 150)).clamp(0.0, 1.0);
+    // Seulement mettre à jour si le changement est significatif (> 0.05)
+    if ((newOpacity - _headerOpacity).abs() > 0.05) {
+      setState(() {
+        _headerOpacity = newOpacity;
+      });
+    }
   }
 
   Future<void> _loadEntrees() async {
@@ -363,162 +387,194 @@ class _EntreesTabState extends State<EntreesTab> {
   }
 
   Widget _buildFinancialHeader() {
+    final theme = Theme.of(context);
     // Utiliser les totaux calculés dans _loadEntrees()
     final soldePrevu = totalEntrees - totalSorties - totalDepenses;
     final soldeDebite = totalEntrees - totalSortiesPointees - totalDepensesPointees;
     
+    // Couleur principale pour les revenus (vert émeraude)
+    const revenueColor = Color(0xFF10B981);
+    const revenueColorDark = Color(0xFF059669);
+    
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.green.shade400, Colors.green.shade600],
+        gradient: const LinearGradient(
+          colors: [revenueColorDark, revenueColor],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.green.withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: revenueColor.withValues(alpha: 0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            // Ligne de contrôles et total
+            Row(
+              children: [
+                // Icône
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.trending_up_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Total revenus
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Revenus',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.8),
+                        ),
+                      ),
+                      Text(
+                        '${AmountParser.formatAmount(totalEntrees)} €',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Boutons d'action
+                if (filteredEntrees.isNotEmpty)
+                  _buildHeaderButton(
+                    icon: _isSelectionMode ? Icons.close_rounded : Icons.checklist_rounded,
+                    onTap: () {
+                      setState(() {
+                        _isSelectionMode = !_isSelectionMode;
+                        if (!_isSelectionMode) {
+                          _selectedIndices.clear();
+                        }
+                      });
+                    },
+                  ),
+                const SizedBox(width: 6),
+                _buildHeaderButton(
+                  icon: Icons.filter_list_rounded,
+                  onTap: _showFilterDialog,
+                  hasFilter: _currentFilter != 'Tous',
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 10),
+            
+            // Soldes en ligne compacte
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSoldeChip(
+                    label: 'Solde Prévu',
+                    value: soldePrevu,
+                    isHighlighted: false,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildSoldeChip(
+                    label: 'Solde Débité',
+                    value: soldeDebite,
+                    isHighlighted: true,
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Stats compactes
+            Text(
+              '${filteredEntrees.length} revenu${filteredEntrees.length > 1 ? 's' : ''} • ${filteredEntrees.where((e) => e['isPointed'] == true).length} pointé${_currentFilter != 'Tous' ? ' • Mois' : ''}',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    bool hasFilter = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+            border: hasFilter 
+                ? Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2)
+                : null,
+          ),
+          child: Icon(
+            icon,
+            color: Colors.white,
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSoldeChip({
+    required String label,
+    required double value,
+    required bool isHighlighted,
+  }) {
+    final theme = Theme.of(context);
+    final isPositive = value >= 0;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: isHighlighted ? 0.15 : 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         children: [
-          // Ligne de contrôles
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const SizedBox(width: 8),
-              Row(
-                children: [
-                  if (filteredEntrees.isNotEmpty)
-                    InkWell(
-                      onTap: () {
-                        setState(() {
-                          _isSelectionMode = !_isSelectionMode;
-                          if (!_isSelectionMode) {
-                            _selectedIndices.clear();
-                          }
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-                        ),
-                        child: Icon(
-                          _isSelectionMode ? Icons.close : Icons.checklist,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: _showFilterDialog,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-                      ),
-                      child: const Icon(
-                        Icons.filter_list,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Total des revenus
           Text(
-            '${AmountParser.formatAmount(totalEntrees)} €',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 10,
             ),
           ),
-          
-          const SizedBox(height: 10),
-          
-          // Soldes prévu et débité
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Solde Prévu',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                      Text(
-                        '${AmountParser.formatAmount(soldePrevu)} €',
-                        style: TextStyle(
-                          color: soldePrevu >= 0 ? Colors.white : Colors.orange.shade200,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Solde Débité',
-                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        '${AmountParser.formatAmount(soldeDebite)} €',
-                        style: TextStyle(
-                          color: soldeDebite >= 0 ? Colors.green.shade200 : Colors.orange.shade200,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 5),
+          const SizedBox(height: 2),
           Text(
-            '${filteredEntrees.length} revenu${filteredEntrees.length > 1 ? 's' : ''} • ${filteredEntrees.where((e) => e['isPointed'] == true).length} pointé${filteredEntrees.where((e) => e['isPointed'] == true).length > 1 ? 's' : ''}${_currentFilter != 'Tous' ? ' • $_currentFilter' : ''}',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
+            '${AmountParser.formatAmount(value)} €',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: !isPositive ? const Color(0xFFFBBF24) : Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
             ),
           ),
         ],
@@ -1427,36 +1483,23 @@ class _EntreesTabState extends State<EntreesTab> {
                 )
               : Column(
                   children: [
-                    // En-tête avec totaux et filtres
-                    _buildFinancialHeader(),
-                    _buildSummaryCard(), // AJOUTER la carte de résumé
-
-                    // Barre d'outils avec bouton sélection multiple
-                    if (filteredEntrees.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: Row(
-                          children: [
-                            TextButton.icon(
-                              onPressed: () {
-                                setState(() {
-                                  _isSelectionMode = !_isSelectionMode;
-                                  if (!_isSelectionMode) {
-                                    _selectedIndices.clear();
-                                  }
-                                });
-                              },
-                              icon: Icon(_isSelectionMode ? Icons.close : Icons.checklist),
-                              label: Text(_isSelectionMode ? 'Annuler sélection' : 'Sélection multiple'),
-                            ),
-                            const Spacer(),
-                          ],
-                        ),
+                    // Espace pour l'AppBar
+                    SizedBox(height: MediaQuery.of(context).padding.top + 70),
+                    
+                    // En-tête avec totaux et filtres - avec effet de disparition au scroll
+                    AnimatedOpacity(
+                      opacity: _headerOpacity,
+                      duration: const Duration(milliseconds: 100),
+                      child: SizedBox(
+                        height: _headerOpacity > 0.1 ? null : 0,
+                        child: _headerOpacity > 0.1 ? _buildFinancialHeader() : null,
                       ),
+                    ),
 
                     // Liste des entrées filtrées
                     Expanded(
                       child: ListView.builder(
+                        controller: _scrollController,
                         itemCount: filteredEntrees.length,
                         itemBuilder: (context, index) {
                           final entree = filteredEntrees[index];

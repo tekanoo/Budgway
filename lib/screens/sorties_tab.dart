@@ -38,11 +38,35 @@ class _SortiesTabState extends State<SortiesTab> {
   double totalRevenus = 0.0;
   double totalDepenses = 0.0;
   double totalDepensesPointees = 0.0;
+  
+  // Scroll controller pour l'effet de disparition du header
+  final ScrollController _scrollController = ScrollController();
+  double _headerOpacity = 1.0;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadSorties();
+  }
+  
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+  
+  void _onScroll() {
+    // Calculer l'opacité basée sur le scroll (disparition sur 150px)
+    final offset = _scrollController.offset;
+    final newOpacity = (1.0 - (offset / 150)).clamp(0.0, 1.0);
+    // Seulement mettre à jour si le changement est significatif (> 0.05)
+    if ((newOpacity - _headerOpacity).abs() > 0.05) {
+      setState(() {
+        _headerOpacity = newOpacity;
+      });
+    }
   }
 
   Future<void> _loadSorties() async {
@@ -751,213 +775,180 @@ class _SortiesTabState extends State<SortiesTab> {
   }
 
   Widget _buildFinancialHeader() {
+    final theme = Theme.of(context);
     // Pour le solde débité, on utilise les charges pointées ET les dépenses pointées
     final soldeDebite = totalRevenus - totalPointe - totalDepensesPointees;
     
+    // Couleur principale pour les charges (rouge moderne)
+    const chargesColor = Color(0xFFEF4444);
+    const chargesColorDark = Color(0xFFDC2626);
+    
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.red.shade400, Colors.red.shade600],
+        gradient: const LinearGradient(
+          colors: [chargesColorDark, chargesColor],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.red.withValues(alpha: 0.3),
-            blurRadius: 8,
+            color: chargesColor.withValues(alpha: 0.25),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        children: [
-          // Titre et boutons d'actions
-          Row(
-            children: [
-              const Icon(Icons.receipt_long, color: Colors.white, size: 24),
-              const SizedBox(width: 8),
-              const Text(
-                'Charges',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const Spacer(),
-              // AJOUTER le bouton de copie vers le mois suivant
-              if (widget.selectedMonth != null) ...[
-                InkWell(
-                  onTap: _copyChargesToNextMonth,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-                    ),
-                    child: const Icon(
-                      Icons.content_copy,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-              if (_isSelectionMode)
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _isSelectionMode = false;
-                      _selectedIndices.clear();
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              InkWell(
-                  onTap: () {
-                    setState(() {
-                      _isSelectionMode = true;
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-                    ),
-                    child: Icon(
-                      _isSelectionMode ? Icons.close : Icons.checklist,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              const SizedBox(width: 8),
-              InkWell(
-                onTap: _showFilterDialog,
-                child: Container(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            // Ligne de contrôles et total
+            Row(
+              children: [
+                // Icône
+                Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
-                    Icons.filter_list,
+                    Icons.receipt_long_rounded,
                     color: Colors.white,
                     size: 20,
                   ),
                 ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // CORRECTION : Affichage du total net des charges (charges - remboursements des dépenses)
-          Column(
-            children: [
-              const Text(
-                'Charges nettes',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
+                const SizedBox(width: 12),
+                // Total charges
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Charges',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.8),
+                        ),
+                      ),
+                      Text(
+                        '${totalSorties.toStringAsFixed(2).replaceAll('.', ',')} €',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Text(
-                '${totalSorties.toStringAsFixed(2).replaceAll('.', ',')} €',
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                // Boutons d'action
+                if (widget.selectedMonth != null)
+                  _buildHeaderButton(
+                    icon: Icons.content_copy_rounded,
+                    onTap: _copyChargesToNextMonth,
+                  ),
+                if (widget.selectedMonth != null)
+                  const SizedBox(width: 6),
+                if (filteredSorties.isNotEmpty)
+                  _buildHeaderButton(
+                    icon: _isSelectionMode ? Icons.close_rounded : Icons.checklist_rounded,
+                    onTap: () {
+                      setState(() {
+                        _isSelectionMode = !_isSelectionMode;
+                        if (!_isSelectionMode) {
+                          _selectedIndices.clear();
+                        }
+                      });
+                    },
+                  ),
+                const SizedBox(width: 6),
+                _buildHeaderButton(
+                  icon: Icons.filter_list_rounded,
+                  onTap: _showFilterDialog,
+                  hasFilter: _currentFilter != 'Tous',
                 ),
-              ),
-            ],
+              ],
+            ),
+            
+            const SizedBox(height: 10),
+            
+            // Stats en ligne compacte
+            Row(
+              children: [
+                _buildStatColumn('Pointées', totalPointe),
+                Container(
+                  height: 30,
+                  width: 1,
+                  color: Colors.white.withValues(alpha: 0.2),
+                ),
+                _buildStatColumn('Non pointées', totalSorties - totalPointe),
+                Container(
+                  height: 30,
+                  width: 1,
+                  color: Colors.white.withValues(alpha: 0.2),
+                ),
+                _buildStatColumn('Solde', soldeDebite, isBalance: true),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    bool hasFilter = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+            border: hasFilter 
+                ? Border.all(color: Colors.white.withValues(alpha: 0.5), width: 2)
+                : null,
           ),
+          child: Icon(
+            icon,
+            color: Colors.white,
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
 
-          const SizedBox(height: 16),
-
-          // Statistiques en ligne
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              Column(
-                children: [
-                  const Text(
-                    'Pointées',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  Text(
-                    '${totalPointe.toStringAsFixed(2).replaceAll('.', ',')} €',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                height: 30,
-                width: 1,
-                color: Colors.white30,
-              ),
-              Column(
-                children: [
-                  const Text(
-                    'Non pointées',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  Text(
-                    '${(totalSorties - totalPointe).toStringAsFixed(2).replaceAll('.', ',')} €',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                height: 30,
-                width: 1,
-                color: Colors.white30,
-              ),
-              Column(
-                children: [
-                  const Text(
-                    'Solde',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  Text(
-                    '${soldeDebite.toStringAsFixed(2).replaceAll('.', ',')} €',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: soldeDebite >= 0 ? Colors.white : Colors.red.shade200,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+  Widget _buildStatColumn(String label, double value, {bool isBalance = false}) {
+    final theme = Theme.of(context);
+    final isPositive = value >= 0;
+    
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${value.toStringAsFixed(2).replaceAll('.', ',')} €',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: isBalance && !isPositive 
+                  ? const Color(0xFFFBBF24) 
+                  : Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -1275,39 +1266,23 @@ class _SortiesTabState extends State<SortiesTab> {
                 )
               : Column(
                   children: [
-                    _buildFinancialHeader(),
-                    if (filteredSorties.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: Row(
-                          children: [
-                            TextButton.icon(
-                              onPressed: () {
-                                setState(() {
-                                  _isSelectionMode = !_isSelectionMode;
-                                  if (!_isSelectionMode) {
-                                    _selectedIndices.clear();
-                                  }
-                                });
-                              },
-                              icon: Icon(_isSelectionMode ? Icons.close : Icons.checklist),
-                              label: Text(_isSelectionMode ? 'Annuler' : 'Sélection multiple'),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              onPressed: _addSortie,
-                              icon: const Icon(Icons.add),
-                              tooltip: 'Ajouter une charge',
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
+                    // Espace pour l'AppBar
+                    SizedBox(height: MediaQuery.of(context).padding.top + 70),
+                    
+                    // En-tête financier avec effet de disparition au scroll
+                    AnimatedOpacity(
+                      opacity: _headerOpacity,
+                      duration: const Duration(milliseconds: 100),
+                      child: SizedBox(
+                        height: _headerOpacity > 0.1 ? null : 0,
+                        child: _headerOpacity > 0.1 ? _buildFinancialHeader() : null,
                       ),
+                    ),
+
+                    // Liste des charges
                     Expanded(
                       child: ListView.builder(
+                        controller: _scrollController,
                         itemCount: filteredSorties.length,
                         itemBuilder: (context, index) {
                           final sortie = filteredSorties[index];

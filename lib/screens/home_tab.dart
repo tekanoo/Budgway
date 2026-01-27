@@ -211,23 +211,11 @@ class _HomeTabState extends State<HomeTab> {
     final solde = _monthlyEntrees - _monthlySorties - _monthlyPlaisirs;
     
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(16.0, MediaQuery.of(context).padding.top + 100, 16.0, 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // En-tête avec titre du mois
-            if (widget.selectedMonth != null) ...[
-              Text(
-                'Dashboard - $monthName',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            
             // Cartes de résumé
             _buildSummaryCards(solde),
             
