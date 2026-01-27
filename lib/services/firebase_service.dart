@@ -1,9 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_analytics/firebase_analytics.dart'; // AJOUT
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter/foundation.dart' show kIsWeb; // nécessaire pour kIsWeb uniquement
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'data_update_bus.dart';
+import 'encryption_service.dart';
 
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
@@ -12,20 +13,15 @@ class FirebaseService {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAnalytics _analytics = FirebaseAnalytics.instance; // AJOUT
+  final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
+  final FinancialDataEncryption _encryption = FinancialDataEncryption();
   
-  // GoogleSignIn initialisé directement
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     clientId: kIsWeb ? '570468917791-5op36av9boj6q6qcb3nmlf5a3bk0k7ub.apps.googleusercontent.com' : null,
   );
 
-  // Stream pour écouter les changements d'authentification
   Stream<User?> get authStateChanges => _auth.authStateChanges();
-  
-  // Utilisateur actuel
   User? get currentUser => _auth.currentUser;
-  
-  // Vérifier si connecté
   bool get isSignedIn => currentUser != null;
 
   /// AUTHENTIFICATION
@@ -324,30 +320,176 @@ class FirebaseService {
     }
   }
 
-  /// Supprimer toutes les données de l'utilisateur connecté
+  /// Supprimer toutes les données de l'utilisateur connecté (ATOMIQUE)
   Future<void> deleteUserData() async {
     try {
       final user = _auth.currentUser;
       if (user == null) return;
 
-      // Supprimer tous les documents de la collection budget
       final budgetCollection = _firestore
           .collection('users')
           .doc(user.uid)
           .collection('budget');
 
-      // Supprimer tous les documents de la sous-collection budget
+      // Récupère tous les documents
       final docs = await budgetCollection.get();
-      for (var doc in docs.docs) {
-        await doc.reference.delete();
-      }
-
-      // Supprimer le document principal de l'utilisateur (optionnel)
-      // await _firestore.collection('users').doc(user.uid).delete();
       
-  // Log supprimé
-  } catch (e) {
+      if (docs.docs.isEmpty) return;
+      
+      // Utilise un WriteBatch pour suppression atomique (tout ou rien)
+      final WriteBatch batch = _firestore.batch();
+      
+      for (var doc in docs.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Exécute la suppression atomique
+      await batch.commit();
+    } catch (e) {
       rethrow;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MIGRATION SÉCURITÉ - Legacy vers Secure Encryption
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Migre toutes les données de l'utilisateur vers le nouveau format de chiffrement
+  /// Cette méthode doit être appelée au démarrage de l'app après connexion
+  /// Retourne true si une migration a été effectuée, false sinon
+  Future<bool> migrateUserSecurity() async {
+    if (!isSignedIn) return false;
+    
+    try {
+      // Initialise le service de chiffrement pour l'utilisateur
+      _encryption.initializeForUser(currentUser!.uid);
+      
+      bool migrationNeeded = false;
+      final WriteBatch batch = _firestore.batch();
+      
+      // Migre les entrées
+      final entreesResult = await _migrateCollection('entrees', batch);
+      migrationNeeded = migrationNeeded || entreesResult;
+      
+      // Migre les sorties
+      final sortiesResult = await _migrateCollection('sorties', batch);
+      migrationNeeded = migrationNeeded || sortiesResult;
+      
+      // Migre les plaisirs
+      final plaisirsResult = await _migrateCollection('plaisirs', batch);
+      migrationNeeded = migrationNeeded || plaisirsResult;
+      
+      // Commit toutes les migrations en une seule transaction atomique
+      if (migrationNeeded) {
+        await batch.commit();
+        
+        // Log de la migration
+        await _analytics.logEvent(
+          name: 'security_migration_completed',
+          parameters: {'user_id': currentUser!.uid},
+        );
+        
+        // Notifie les listeners
+        DataUpdateBus.emit('entrees');
+        DataUpdateBus.emit('sorties');
+        DataUpdateBus.emit('plaisirs');
+      }
+      
+      return migrationNeeded;
+    } catch (e) {
+      // Log l'erreur mais ne bloque pas l'app
+      await _analytics.logEvent(
+        name: 'security_migration_error',
+        parameters: {'error': e.toString()},
+      );
+      return false;
+    }
+  }
+
+  /// Migre une collection spécifique vers le nouveau format de chiffrement
+  /// Retourne true si des données ont été migrées
+  Future<bool> _migrateCollection(String collectionName, WriteBatch batch) async {
+    try {
+      final doc = await _userBudgetCollection!.doc(collectionName).get();
+      
+      if (!doc.exists || doc.data() == null) return false;
+      
+      final data = doc.data() as Map<String, dynamic>;
+      final List<dynamic> items = data['data'] ?? [];
+      
+      if (items.isEmpty) return false;
+      
+      bool hasLegacyData = false;
+      final List<Map<String, dynamic>> migratedItems = [];
+      
+      for (var item in items) {
+        final Map<String, dynamic> transaction = Map<String, dynamic>.from(item);
+        
+        // Tente de migrer la transaction
+        final migratedTransaction = _encryption.migrateTransaction(transaction);
+        
+        if (migratedTransaction != null) {
+          // Transaction migrée avec succès
+          migratedItems.add(migratedTransaction);
+          hasLegacyData = true;
+        } else {
+          // Pas besoin de migration, garde l'original
+          migratedItems.add(transaction);
+        }
+      }
+      
+      // Si des données legacy ont été trouvées, prépare la mise à jour
+      if (hasLegacyData) {
+        batch.set(
+          _userBudgetCollection!.doc(collectionName),
+          {
+            'data': migratedItems,
+            'updatedAt': FieldValue.serverTimestamp(),
+            '_securityVersion': 2, // Marque la version de sécurité
+          },
+        );
+      }
+      
+      return hasLegacyData;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Vérifie si l'utilisateur a des données au format legacy
+  Future<bool> hasLegacyData() async {
+    if (!isSignedIn) return false;
+    
+    try {
+      _encryption.initializeForUser(currentUser!.uid);
+      
+      for (String collection in ['entrees', 'sorties', 'plaisirs']) {
+        final doc = await _userBudgetCollection!.doc(collection).get();
+        
+        if (!doc.exists || doc.data() == null) continue;
+        
+        final data = doc.data() as Map<String, dynamic>;
+        final List<dynamic> items = data['data'] ?? [];
+        
+        for (var item in items) {
+          final Map<String, dynamic> transaction = Map<String, dynamic>.from(item);
+          
+          if (transaction['_encrypted'] == true && 
+              transaction['_encryptionVersion'] != 2) {
+            // Donnée chiffrée mais pas au format v2
+            if (transaction['amount'] is String) {
+              final String encryptedAmount = transaction['amount'];
+              if (_encryption.isLegacyFormat(encryptedAmount)) {
+                return true;
+              }
+            }
+          }
+        }
+      }
+      
+      return false;
+    } catch (e) {
+      return false;
     }
   }
 }
