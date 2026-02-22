@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Fonction utilitaire - vérifie si l'utilisateur est authentifié
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Fonction utilitaire - vérifie si l'utilisateur accède à ses propres données
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+    
+    // Collection "users" - chaque utilisateur ne peut accéder qu'à ses propres données
+    match /users/{uid} {
+      // Permettre la création/lecture d'un document utilisateur pour l'utilisateur lui-même
+      allow read, write: if isAuthenticated() && isOwner(uid);
+      
+      // Sous-collection "budget" - données financières chiffrées
+      match /budget/{document=**} {
+        // Lire et écrire uniquement pour le propriétaire du compte
+        allow read, write: if isAuthenticated() && isOwner(uid);
+        
+        // Pas d'accès en suppression (sauf via backend si nécessaire)
+        allow delete: if false;
+      }
+    }
+    
+    // Tous les autres accès sont refusés par défaut
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
