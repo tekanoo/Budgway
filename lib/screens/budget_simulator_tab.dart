@@ -752,6 +752,10 @@ class _BudgetSimulatorTabState extends State<BudgetSimulatorTab> {
     final totalExpenses = _getTotalExpenses();
     final remaining = _getRemainingToInvest();
     
+    // Calcul des pourcentages
+    final chargesPercent = totalIncome > 0 ? (totalCharges / totalIncome) * 100 : 0.0;
+    final expensesPercent = totalIncome > 0 ? (totalExpenses / totalIncome) * 100 : 0.0;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -771,12 +775,14 @@ class _BudgetSimulatorTabState extends State<BudgetSimulatorTab> {
           label: 'Charges mensuelles',
           amount: totalCharges,
           color: const Color(0xFFFFC107),
+          percentage: chargesPercent,
         ),
         const SizedBox(height: 12),
         _buildSummaryCard(
           label: 'Dépenses mensuelles',
           amount: totalExpenses,
           color: const Color(0xFFf44336),
+          percentage: expensesPercent,
         ),
         const SizedBox(height: 12),
         _buildSummaryCard(
@@ -807,6 +813,7 @@ class _BudgetSimulatorTabState extends State<BudgetSimulatorTab> {
     required double amount,
     required Color color,
     bool isHighlight = false,
+    double? percentage,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -827,13 +834,30 @@ class _BudgetSimulatorTabState extends State<BudgetSimulatorTab> {
             label,
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           ),
-          Text(
-            '${amount.toStringAsFixed(2).replaceAll('.', ',')} €',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${amount.toStringAsFixed(2).replaceAll('.', ',')} €',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              if (percentage != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '${percentage.toStringAsFixed(1).replaceAll('.', ',')} % des revenus',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
