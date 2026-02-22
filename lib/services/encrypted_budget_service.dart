@@ -1055,4 +1055,121 @@ Future<void> togglePlaisirPointing(int index) async {
       return {};
     }
   }
+
+  /// GESTION DU SIMULATEUR DE BUDGET (DONNÉES CHIFFRÉES)
+
+  /// Sauvegarde les données du simulateur de budget de manière chiffrée
+  Future<void> saveBudgetSimulator(Map<String, dynamic> simulatorData) async {
+    _ensureInitialized();
+    try {
+      final List<Map<String, dynamic>> encryptedIncomes = [];
+      final List<Map<String, dynamic>> encryptedCharges = [];
+      final List<Map<String, dynamic>> encryptedExpenses = [];
+
+      // Chiffre les revenus
+      if (simulatorData['incomes'] is List) {
+        for (var income in simulatorData['incomes'] as List) {
+          encryptedIncomes.add(_encryption.encryptTransaction(income));
+        }
+      }
+
+      // Chiffre les charges
+      if (simulatorData['charges'] is List) {
+        for (var charge in simulatorData['charges'] as List) {
+          encryptedCharges.add(_encryption.encryptTransaction(charge));
+        }
+      }
+
+      // Chiffre les dépenses
+      if (simulatorData['expenses'] is List) {
+        for (var expense in simulatorData['expenses'] as List) {
+          encryptedExpenses.add(_encryption.encryptTransaction(expense));
+        }
+      }
+
+      // Crée le document du simulateur
+      final simulator = {
+        'incomes': encryptedIncomes,
+        'charges': encryptedCharges,
+        'expenses': encryptedExpenses,
+        'expensePercent': simulatorData['expensePercent'] ?? 0,
+        'lastUpdated': DateTime.now().toIso8601String(),
+      };
+
+      // Sauvegarde dans Firebase (chiffré)
+      await _userBudgetCollection!.doc('simulator').set(simulator);
+
+      if (kDebugMode) {
+        print('✅ Simulateur de budget sauvegardé chiffré');
+      }
+
+      DataUpdateBus.emit('simulator');
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Erreur sauvegarde simulateur chiffré: $e');
+      }
+      rethrow;
+    }
+  }
+
+  /// Charge les données du simulateur de budget chiffrées et les déchiffre
+  Future<Map<String, dynamic>> loadBudgetSimulator() async {
+    _ensureInitialized();
+    try {
+      final doc = await _userBudgetCollection!.doc('simulator').get();
+
+      if (!doc.exists) {
+        return {
+          'incomes': [],
+          'charges': [],
+          'expenses': [],
+          'expensePercent': 0,
+        };
+      }
+
+      final data = doc.data() as Map<String, dynamic>;
+
+      // Déchiffre les revenus
+      final List<Map<String, dynamic>> decryptedIncomes = [];
+      if (data['incomes'] is List) {
+        for (var income in data['incomes'] as List) {
+          decryptedIncomes.add(_encryption.decryptTransaction(income));
+        }
+      }
+
+      // Déchiffre les charges
+      final List<Map<String, dynamic>> decryptedCharges = [];
+      if (data['charges'] is List) {
+        for (var charge in data['charges'] as List) {
+          decryptedCharges.add(_encryption.decryptTransaction(charge));
+        }
+      }
+
+      // Déchiffre les dépenses
+      final List<Map<String, dynamic>> decryptedExpenses = [];
+      if (data['expenses'] is List) {
+        for (var expense in data['expenses'] as List) {
+          decryptedExpenses.add(_encryption.decryptTransaction(expense));
+        }
+      }
+
+      return {
+        'incomes': decryptedIncomes,
+        'charges': decryptedCharges,
+        'expenses': decryptedExpenses,
+        'expensePercent': data['expensePercent'] ?? 0,
+        'lastUpdated': data['lastUpdated'] ?? '',
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Erreur chargement simulateur: $e');
+      }
+      return {
+        'incomes': [],
+        'charges': [],
+        'expenses': [],
+        'expensePercent': 0,
+      };
+    }
+  }
 }

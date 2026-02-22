@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/encrypted_budget_service.dart';
+import 'budget_simulator_tab.dart';
 
 /// Onglet d'analyse globale remplaçant les projections.
 /// Affiche :
@@ -13,9 +14,11 @@ class GlobalAnalyseTab extends StatefulWidget {
   State<GlobalAnalyseTab> createState() => _GlobalAnalyseTabState();
 }
 
-class _GlobalAnalyseTabState extends State<GlobalAnalyseTab> {
+class _GlobalAnalyseTabState extends State<GlobalAnalyseTab> with TickerProviderStateMixin {
   final EncryptedBudgetDataService _dataService = EncryptedBudgetDataService();
   bool _loading = true;
+  
+  late TabController _tabController;
 
   double _totalDepenses = 0; // incluant virements
   double _avgDepenses = 0;   // moyenne sur mois actifs
@@ -24,7 +27,14 @@ class _GlobalAnalyseTabState extends State<GlobalAnalyseTab> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _load();
+  }
+  
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -85,6 +95,38 @@ class _GlobalAnalyseTabState extends State<GlobalAnalyseTab> {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+          ),
+          child: TabBar(
+            controller: _tabController,
+            labelColor: Colors.blue,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: Colors.blue,
+            tabs: const [
+              Tab(text: 'Analyse Dépenses'),
+              Tab(text: 'Simulateur Budget'),
+            ],
+          ),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildAnalyseTab(),
+              const BudgetSimulatorTab(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnalyseTab() {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -105,6 +147,7 @@ class _GlobalAnalyseTabState extends State<GlobalAnalyseTab> {
       ),
     );
   }
+
   Widget _buildHeader() {
     return Card(
       elevation: 3,
